@@ -5,7 +5,6 @@ using Evergine.Framework.Graphics;
 using Evergine.Framework.Graphics.Effects;
 using Evergine.Mathematics;
 using Evergine.Metal;
-using EvergineMauiMetal.Interop;
 using EvergineMauiMetal.Rendering;
 
 namespace EvergineMauiMetal.Game;
@@ -18,7 +17,6 @@ internal sealed class DashboardScene : Scene
     private SamplerState? dashboardSampler;
     private Evergine.Framework.Graphics.Effects.Effect? dashboardEffect;
     private Material? dashboardMaterial;
-    private SharedTextureOwnership? textureOwnership;
 
     protected override void CreateScene()
     {
@@ -41,7 +39,6 @@ internal sealed class DashboardScene : Scene
         };
 
         dashboardTexture = (MTLTexture)graphicsContext.Factory.CreateTexture(ref textureDescription);
-        textureOwnership = new SharedTextureOwnership(dashboardTexture.NativePointer);
 
         var samplerDescription = SamplerStates.LinearClamp;
         dashboardSampler = graphicsContext.Factory.CreateSamplerState(ref samplerDescription);
@@ -88,8 +85,7 @@ internal sealed class DashboardScene : Scene
             })
             .AddComponent(new SkiaTextureUpdater(
                 graphicsContext,
-                dashboardTexture,
-                textureOwnership));
+                dashboardTexture));
 
         Managers.EntityManager.Add(camera);
         Managers.EntityManager.Add(cube);
@@ -108,10 +104,6 @@ internal sealed class DashboardScene : Scene
         dashboardEffect?.Dispose();
         dashboardSampler?.Dispose();
 
-        if (dashboardTexture is not null && textureOwnership is not null)
-        {
-            textureOwnership.ReleaseEngineTexture(dashboardTexture.NativePointer);
-            dashboardTexture.Dispose();
-        }
+        dashboardTexture?.Dispose();
     }
 }

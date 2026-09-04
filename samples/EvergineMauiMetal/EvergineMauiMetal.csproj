@@ -35,8 +35,4 @@
     <PackageReference Include="SkiaSharp.NativeAssets.iOS" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Remove="Interop\**\*.cs" />
-    <ProjectReference Include="Interop\EvergineMauiMetal.Interop.csproj" />
-  </ItemGroup>
 </Project>

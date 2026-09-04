@@ -30,11 +30,11 @@ flowchart TD
     T -->|DefaultView sampled by material| C
 ```
 
-`MainPage` only configures `EvergineView.ApplicationFactory`. It does not create
-a Metal layer, graphics device, queue, shader pipeline, cube, command buffer,
-timer, or frame loop. The handler creates a fresh Evergine application when the
-view connects, stops the iOS display link when it disconnects, and then disposes
-the engine-owned scene and GPU resources.
+`App` places `EvergineView` directly in its window. It does not create a Metal
+layer, graphics device, queue, shader pipeline, cube, command buffer, timer, or
+frame loop. The handler creates the Evergine application when the view connects,
+stops the iOS display link when it disconnects, and then disposes the
+engine-owned scene and GPU resources.
 
 `EvergineView` and its handler are original source in this repository, following
 the architecture of Evergine's official
@@ -89,9 +89,10 @@ and `SkiaMetalTextureBridge` wraps `MTLTexture.NativePointer` in
 releases only Skia wrappers, its `GRContext`, and its dedicated Metal command
 queue; it never disposes the engine texture.
 
-`SharedTextureOwnership` makes that boundary executable and testable: engine
-release is illegal while a Skia wrapper is attached, wrapper disposal does not
-release the texture, and every frame must observe the original native handle.
+`SkiaTextureUpdater` records the original native handle and validates it before
+each Skia write and after each Evergine presentation. The Skia bridge disposes
+only its wrappers and command queue; the scene disposes the engine texture after
+the behavior is destroyed.
 
 ## Per-frame ordering
 
@@ -113,9 +114,10 @@ It favors a clear public-API contract over throughput. A production engine
 adapter should use shared Metal events or fences if its render-stage API exposes
 the necessary submission hooks.
 
-`InteropFrameContract` enforces the legal
+The update and presentation callbacks implement the legal
 engine-ready -> Skia-writing -> Evergine-sampling -> engine-ready sequence.
-Diagnostics report only real frame count, backend, and native-handle stability:
+Runtime diagnostics report the real frame count, backend, and native-handle
+stability:
 
 ```text
 Interop initialized: backend=Evergine Metal + Skia Ganesh Metal, shared nativeTexture=0x...
@@ -138,7 +140,6 @@ Requirements:
 ```bash
 dotnet workload install maui-ios
 dotnet restore SkiaSharpGraphicsInteropSamples.slnx
-dotnet test tests/EvergineMauiMetal.Interop.Tests/EvergineMauiMetal.Interop.Tests.csproj
 dotnet build samples/EvergineMauiMetal/EvergineMauiMetal.csproj \
   -f net10.0-ios \
   -p:RuntimeIdentifier=iossimulator-arm64

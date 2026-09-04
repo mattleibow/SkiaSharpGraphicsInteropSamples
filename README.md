@@ -8,7 +8,6 @@ SkiaSharp and rendering engines without application-level pixel transfers.
 | Sample | Platform | Status |
 |---|---|---|
 | [SkiaSharp + Evergine Metal](samples/EvergineMauiMetal/README.md) | .NET MAUI iOS Simulator, Metal | Genuine Evergine application; locally runtime-verified |
-| SkiaSharp + Evergine Direct3D 12 | Windows | Blocked by the current public Evergine queue API; details are in the Metal sample README |
 
 The Metal sample is the reference implementation. MAUI hosts an Evergine view;
 an Evergine Framework application owns the scene, frame loop, rotating cube,

@@ -27,9 +27,6 @@ jobs:
       - name: Restore
         run: dotnet restore SkiaSharpGraphicsInteropSamples.slnx
 
-      - name: Test bridge contract
-        run: dotnet test tests/EvergineMauiMetal.Interop.Tests/EvergineMauiMetal.Interop.Tests.csproj --no-restore
-
       - name: Build iOS Simulator sample
         run: >-
           dotnet build samples/EvergineMauiMetal/EvergineMauiMetal.csproj

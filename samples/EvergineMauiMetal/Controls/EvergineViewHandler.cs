@@ -3,12 +3,18 @@ using Evergine.Common.Graphics;
 using Evergine.Framework.Graphics;
 using Evergine.Framework.Services;
 using Evergine.iOS;
+using EvergineMauiMetal.Game;
 using Microsoft.Maui.Handlers;
+using ObjCRuntime;
 using UIKit;
 
 namespace EvergineMauiMetal.Controls;
 
-public sealed class EvergineViewHandler : ViewHandler<EvergineView, UIView>
+internal sealed class EvergineView : View
+{
+}
+
+internal sealed class EvergineViewHandler : ViewHandler<EvergineView, UIView>
 {
     private static readonly IPropertyMapper<EvergineView, EvergineViewHandler> PropertyMapper =
         new PropertyMapper<EvergineView, EvergineViewHandler>(ViewMapper);
@@ -60,20 +66,17 @@ public sealed class EvergineViewHandler : ViewHandler<EvergineView, UIView>
     private void OnViewDidLayout(object? sender, EventArgs e)
     {
         isViewLoaded = true;
-        StartApplication(VirtualView);
+        StartApplication();
     }
 
-    private void StartApplication(EvergineView view)
+    private void StartApplication()
     {
         if (!isViewLoaded || isEvergineInitialized)
         {
             return;
         }
 
-        var applicationFactory = view.ApplicationFactory
-            ?? throw new InvalidOperationException(
-                $"{nameof(EvergineView)} requires an {nameof(EvergineView.ApplicationFactory)}.");
-        var application = applicationFactory();
+        var application = new EvergineGameApplication();
         evergineApplication = application;
 
         var windowsSystem = new IOSWindowsSystem(evergineViewController!);
@@ -124,5 +127,58 @@ public sealed class EvergineViewHandler : ViewHandler<EvergineView, UIView>
         var graphicsPresenter = application.Container.Resolve<GraphicsPresenter>();
         graphicsPresenter.AddDisplay("DefaultDisplay", new Display(surface, swapChain));
         application.Container.RegisterInstance(graphicsContext);
+    }
+}
+
+internal sealed class EvergineAppViewController : EvergineViewController
+{
+    private bool renderLoopStopped;
+
+    public EvergineAppViewController()
+    {
+    }
+
+    public EvergineAppViewController(NativeHandle handle)
+        : base(handle)
+    {
+    }
+
+    public event EventHandler? ViewDidLayout;
+
+    public override void LoadView()
+    {
+        base.LoadView();
+        View = new UIView
+        {
+            BackgroundColor = UIColor.FromRGB(7, 11, 22),
+            Opaque = true,
+        };
+    }
+
+    public override void ViewDidLayoutSubviews()
+    {
+        base.ViewDidLayoutSubviews();
+        ViewDidLayout?.Invoke(this, EventArgs.Empty);
+    }
+
+    internal void StopRendering()
+    {
+        if (renderLoopStopped)
+        {
+            return;
+        }
+
+        renderLoopStopped = true;
+        Timer?.Invalidate();
+        Timer?.Dispose();
+        Timer = null!;
+
+        SurfaceDestroy?.Invoke();
+        LoadAction = null!;
+        RenderAction = null!;
+        SurfaceInitialized = null!;
+        SurfaceSizeChange = null!;
+        SurfaceInfoChange = null!;
+        SurfaceDestroy = null!;
     }
 }

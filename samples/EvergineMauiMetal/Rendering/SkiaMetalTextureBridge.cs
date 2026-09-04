@@ -1,4 +1,3 @@
-using EvergineMauiMetal.Interop;
 using Evergine.Metal;
 using Metal;
 using SkiaSharp;
@@ -45,7 +44,7 @@ internal sealed class SkiaMetalTextureBridge : IDisposable
             ?? throw new InvalidOperationException("Skia could not wrap the Evergine-owned Metal texture.");
     }
 
-    public void RenderDashboard(InteropDiagnostics diagnostics, TimeSpan elapsed)
+    public void RenderDashboard(long frameCount, string backend, TimeSpan elapsed)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
 
@@ -90,7 +89,7 @@ internal sealed class SkiaMetalTextureBridge : IDisposable
 
         canvas.DrawText("SHARED METAL TEXTURE", 64, 104, SKTextAlign.Left, titleFont, title);
         canvas.DrawText(DateTimeOffset.Now.ToString("HH:mm:ss.fff"), 64, 166, SKTextAlign.Left, bodyFont, body);
-        canvas.DrawText($"Frame {diagnostics.FrameCount + 1:N0}", 720, 166, SKTextAlign.Left, bodyFont, body);
+        canvas.DrawText($"Frame {frameCount + 1:N0}", 720, 166, SKTextAlign.Left, bodyFont, body);
 
         DrawGauge(canvas, "SkiaSharp live frame", 64, 244, 896, 58, 0.35f + (pulse * 0.55f), track, accent, bodyFont, body);
 
@@ -99,7 +98,7 @@ internal sealed class SkiaMetalTextureBridge : IDisposable
         canvas.DrawText("SkiaSharp draws this live UI into it.", 96, 518, SKTextAlign.Left, bodyFont, body);
         canvas.DrawText("Evergine samples the same texture on the cube.", 96, 574, SKTextAlign.Left, bodyFont, body);
         canvas.DrawText(
-            $"Native handle stable across frames: {(diagnostics.IsNativeHandleStable ? "YES" : "NO")}",
+            "Native handle stable across frames: YES",
             96,
             638,
             SKTextAlign.Left,
@@ -107,7 +106,7 @@ internal sealed class SkiaMetalTextureBridge : IDisposable
             success);
 
         canvas.DrawText(
-            $"Backend: {diagnostics.Backend}",
+            $"Backend: {backend}",
             64,
             786,
             SKTextAlign.Left,

@@ -2,7 +2,6 @@ using System.Diagnostics;
 using Evergine.Framework;
 using Evergine.Framework.Services;
 using Evergine.Metal;
-using EvergineMauiMetal.Interop;
 
 namespace EvergineMauiMetal.Rendering;
 
@@ -12,10 +11,9 @@ internal sealed class SkiaTextureUpdater : Evergine.Framework.Behavior
 
     private readonly MTLGraphicsContext graphicsContext;
     private readonly MTLTexture engineTexture;
-    private readonly SharedTextureOwnership textureOwnership;
-    private readonly InteropFrameContract frameContract = new();
-    private readonly InteropDiagnostics diagnostics;
+    private readonly nint nativeTextureHandle;
     private readonly Stopwatch elapsed = Stopwatch.StartNew();
+    private long frameCount;
 
     [BindService]
     private GraphicsPresenter? graphicsPresenter = null!;
@@ -25,39 +23,38 @@ internal sealed class SkiaTextureUpdater : Evergine.Framework.Behavior
 
     public SkiaTextureUpdater(
         MTLGraphicsContext graphicsContext,
-        MTLTexture engineTexture,
-        SharedTextureOwnership textureOwnership)
+        MTLTexture engineTexture)
     {
         this.graphicsContext = graphicsContext;
         this.engineTexture = engineTexture;
-        this.textureOwnership = textureOwnership;
-        diagnostics = new InteropDiagnostics(engineTexture.NativePointer, BackendName);
+        nativeTextureHandle = engineTexture.NativePointer;
+
+        if (nativeTextureHandle == 0)
+        {
+            throw new ArgumentException("The native texture handle must not be null.", nameof(engineTexture));
+        }
     }
 
     protected override bool OnAttached()
     {
         skiaBridge = new SkiaMetalTextureBridge(graphicsContext, engineTexture);
-        textureOwnership.AttachSkiaWrapper(engineTexture.NativePointer);
         attachedPresenter = graphicsPresenter
             ?? throw new InvalidOperationException("Evergine did not bind GraphicsPresenter.");
         attachedPresenter.OnPresented += OnEverginePresented;
 
         WriteDiagnostic(
-            $"Interop initialized: backend={diagnostics.Backend}, " +
-            $"shared nativeTexture=0x{diagnostics.NativeTextureHandle:X}.");
+            $"Interop initialized: backend={BackendName}, " +
+            $"shared nativeTexture=0x{nativeTextureHandle:X}.");
 
         return base.OnAttached();
     }
 
     protected override void Update(TimeSpan gameTime)
     {
-        textureOwnership.ValidateHandle(engineTexture.NativePointer);
+        ValidateNativeHandle();
         graphicsPresenter!.GraphicsCommandQueue.WaitIdle();
 
-        frameContract.BeginSkia();
-        skiaBridge!.RenderDashboard(diagnostics, elapsed.Elapsed);
-        frameContract.CompleteSkiaSynchronously();
-        frameContract.BeginEvergine();
+        skiaBridge!.RenderDashboard(frameCount, BackendName, elapsed.Elapsed);
     }
 
     protected override void OnDestroy()
@@ -69,7 +66,6 @@ internal sealed class SkiaTextureUpdater : Evergine.Framework.Behavior
             skiaBridge.Dispose();
             skiaBridge = null;
             attachedPresenter = null;
-            textureOwnership.DetachSkiaWrapper(engineTexture.NativePointer);
         }
 
         base.OnDestroy();
@@ -77,20 +73,22 @@ internal sealed class SkiaTextureUpdater : Evergine.Framework.Behavior
 
     private void OnEverginePresented(object? sender, EventArgs e)
     {
-        frameContract.CompleteEvergineSynchronously();
-        diagnostics.CompleteFrame(engineTexture.NativePointer);
-        textureOwnership.ValidateHandle(engineTexture.NativePointer);
+        ValidateNativeHandle();
+        frameCount++;
 
-        if (!diagnostics.IsNativeHandleStable)
-        {
-            throw new InvalidOperationException("The Evergine-owned native texture handle changed.");
-        }
-
-        if (diagnostics.FrameCount % 300 == 0)
+        if (frameCount % 300 == 0)
         {
             WriteDiagnostic(
-                $"Interop status: frame={diagnostics.FrameCount}, " +
-                $"native handle stable={diagnostics.IsNativeHandleStable}, backend={diagnostics.Backend}.");
+                $"Interop status: frame={frameCount}, " +
+                $"native handle stable=True, backend={BackendName}.");
+        }
+    }
+
+    private void ValidateNativeHandle()
+    {
+        if (engineTexture.NativePointer != nativeTextureHandle)
+        {
+            throw new InvalidOperationException("The Evergine-owned native texture handle changed.");
         }
     }
 
