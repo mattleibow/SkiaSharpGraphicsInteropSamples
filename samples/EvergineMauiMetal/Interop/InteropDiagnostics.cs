@@ -1,8 +1,8 @@
 namespace EvergineMauiMetal.Interop;
 
-public sealed class ZeroCopyDiagnostics
+public sealed class InteropDiagnostics
 {
-    public ZeroCopyDiagnostics(nint nativeTextureHandle, string backend)
+    public InteropDiagnostics(nint nativeTextureHandle, string backend)
     {
         if (nativeTextureHandle == 0)
         {
@@ -19,10 +19,6 @@ public sealed class ZeroCopyDiagnostics
 
     public long FrameCount { get; private set; }
 
-    public int CpuReadbacks { get; private set; }
-
-    public int CpuUploadsAfterCreation { get; private set; }
-
     public bool IsNativeHandleStable { get; private set; } = true;
 
     public void CompleteFrame(nint currentHandle)
@@ -30,8 +26,4 @@ public sealed class ZeroCopyDiagnostics
         FrameCount++;
         IsNativeHandleStable &= currentHandle == NativeTextureHandle;
     }
-
-    public void RecordCpuReadback() => CpuReadbacks++;
-
-    public void RecordCpuUploadAfterCreation() => CpuUploadsAfterCreation++;
 }

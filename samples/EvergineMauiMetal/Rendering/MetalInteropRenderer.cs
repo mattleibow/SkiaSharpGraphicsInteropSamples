@@ -83,7 +83,7 @@ internal sealed class MetalInteropRenderer : IDisposable
     private readonly EwgTexture dashboardTexture;
     private readonly SkiaMetalTextureBridge skiaBridge;
     private readonly InteropFrameContract frameContract = new();
-    private readonly ZeroCopyDiagnostics diagnostics;
+    private readonly InteropDiagnostics diagnostics;
     private readonly Stopwatch elapsed = Stopwatch.StartNew();
     private EwgTexture? depthTexture;
     private Viewport[] viewports = [];
@@ -115,7 +115,7 @@ internal sealed class MetalInteropRenderer : IDisposable
         };
 
         dashboardTexture = (EwgTexture)graphicsContext.Factory.CreateTexture(ref textureDescription);
-        diagnostics = new ZeroCopyDiagnostics(dashboardTexture.NativePointer, "Evergine Metal + Skia Ganesh Metal");
+        diagnostics = new InteropDiagnostics(dashboardTexture.NativePointer, "Evergine Metal + Skia Ganesh Metal");
         skiaBridge = new SkiaMetalTextureBridge(
             graphicsContext.device,
             graphicsContext.NativeDevicePointer,
@@ -181,7 +181,7 @@ internal sealed class MetalInteropRenderer : IDisposable
 
         WriteDiagnostic(
             $"Interop initialized: backend={diagnostics.Backend}, " +
-            $"nativeTexture=0x{diagnostics.NativeTextureHandle:X}, CPU readbacks=0, CPU uploads after creation=0.");
+            $"shared nativeTexture=0x{diagnostics.NativeTextureHandle:X}.");
     }
 
     public void Resize()
@@ -295,8 +295,7 @@ internal sealed class MetalInteropRenderer : IDisposable
         if (diagnostics.FrameCount % 300 == 0)
         {
             WriteDiagnostic(
-                $"Interop proof: frame={diagnostics.FrameCount}, CPU readbacks={diagnostics.CpuReadbacks}, " +
-                $"CPU uploads after creation={diagnostics.CpuUploadsAfterCreation}, " +
+                $"Interop status: frame={diagnostics.FrameCount}, " +
                 $"native handle stable={diagnostics.IsNativeHandleStable}, backend={diagnostics.Backend}.");
         }
     }

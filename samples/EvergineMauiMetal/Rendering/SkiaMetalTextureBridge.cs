@@ -47,7 +47,7 @@ internal sealed class SkiaMetalTextureBridge : IDisposable
             ?? throw new InvalidOperationException("Skia could not wrap the Evergine-owned Metal texture.");
     }
 
-    public void RenderDashboard(ZeroCopyDiagnostics diagnostics, TimeSpan elapsed)
+    public void RenderDashboard(InteropDiagnostics diagnostics, TimeSpan elapsed)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
 
@@ -90,36 +90,35 @@ internal sealed class SkiaMetalTextureBridge : IDisposable
             Color = new SKColor(110, 231, 183),
         };
 
-        canvas.DrawText("LIVE GPU DASHBOARD", 64, 104, SKTextAlign.Left, titleFont, title);
+        canvas.DrawText("SHARED METAL TEXTURE", 64, 104, SKTextAlign.Left, titleFont, title);
         canvas.DrawText(DateTimeOffset.Now.ToString("HH:mm:ss.fff"), 64, 166, SKTextAlign.Left, bodyFont, body);
         canvas.DrawText($"Frame {diagnostics.FrameCount + 1:N0}", 720, 166, SKTextAlign.Left, bodyFont, body);
 
-        DrawGauge(canvas, "GPU telemetry", 64, 244, 896, 58, 0.35f + (pulse * 0.55f), track, accent, bodyFont, body);
-        DrawGauge(canvas, "Streaming UI", 64, 382, 896, 58, 0.78f - (pulse * 0.25f), track, accent, bodyFont, body);
+        DrawGauge(canvas, "SkiaSharp live frame", 64, 244, 896, 58, 0.35f + (pulse * 0.55f), track, accent, bodyFont, body);
 
-        canvas.DrawRoundRect(new SKRect(64, 530, 960, 744), 24, 24, track);
-        canvas.DrawText($"Backend: {diagnostics.Backend}", 96, 594, SKTextAlign.Left, bodyFont, body);
-        canvas.DrawText("CPU readbacks: 0", 96, 650, SKTextAlign.Left, successFont, success);
-        canvas.DrawText("CPU uploads after creation: 0", 480, 650, SKTextAlign.Left, successFont, success);
+        canvas.DrawRoundRect(new SKRect(64, 382, 960, 690), 24, 24, track);
+        canvas.DrawText("Evergine owns this MTLTexture.", 96, 454, SKTextAlign.Left, successFont, success);
+        canvas.DrawText("SkiaSharp draws this live UI into it.", 96, 518, SKTextAlign.Left, bodyFont, body);
+        canvas.DrawText("Evergine samples the same texture on the cube.", 96, 574, SKTextAlign.Left, bodyFont, body);
         canvas.DrawText(
-            $"Native MTLTexture stable: {(diagnostics.IsNativeHandleStable ? "YES" : "NO")}",
+            $"Native handle stable across frames: {(diagnostics.IsNativeHandleStable ? "YES" : "NO")}",
             96,
-            706,
+            638,
             SKTextAlign.Left,
             successFont,
             success);
 
         canvas.DrawText(
-            "Skia flush: synchronous (CPU-blocking, memory remains zero-copy)",
+            $"Backend: {diagnostics.Backend}",
             64,
-            836,
+            786,
             SKTextAlign.Left,
             bodyFont,
             body);
         canvas.DrawText(
-            "The rotating Evergine cube samples this exact texture.",
+            "Ordered Metal queues: Skia writes, then Evergine samples.",
             64,
-            890,
+            842,
             SKTextAlign.Left,
             bodyFont,
             body);

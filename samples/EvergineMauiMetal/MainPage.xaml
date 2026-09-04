@@ -26,7 +26,7 @@
                     TextColor="White" />
                 <Label
                     FontSize="12"
-                    Text="Ganesh Metal -> Evergine Metal | shared MTLTexture"
+                    Text="Evergine MTLTexture -> Skia Ganesh -> Evergine cube"
                     TextColor="#94A3B8" />
             </VerticalStackLayout>
         </Border>
@@ -43,7 +43,7 @@
             <Label
                 FontAttributes="Bold"
                 FontSize="12"
-                Text="ZERO COPY  |  CPU readbacks: 0  |  CPU uploads after creation: 0"
+                Text="SkiaSharp draws the live UI  |  Evergine samples the same MTLTexture"
                 TextColor="#6EE7B7" />
         </Border>
     </Grid>

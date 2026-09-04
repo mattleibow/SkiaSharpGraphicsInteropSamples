@@ -1,18 +1,21 @@
-# SkiaSharp + Evergine Metal zero-copy interop
+# SkiaSharp + Evergine Metal texture interop
 
 This .NET MAUI Mac Catalyst sample renders a changing 2D dashboard with
 SkiaSharp Ganesh Metal directly into an Evergine-owned Metal texture. Evergine
-samples that exact texture on a rotating, depth-tested 3D cube. There is no CPU readback,
-pixel copy, staging texture, or texture upload after creation.
+samples that exact texture on a rotating, depth-tested 3D cube. The application
+code reuses one native `MTLTexture` and does not invoke a CPU readback, pixel
+copy, staging-texture transfer, or texture upload after creation.
 
 The running UI and console diagnostics report:
 
 ```text
-CPU readbacks=0
-CPU uploads after creation=0
-native MTLTexture stable=True
-backend=Evergine Metal + Skia Ganesh Metal
+Interop initialized: backend=Evergine Metal + Skia Ganesh Metal, shared nativeTexture=0x...
+Interop status: frame=300, native handle stable=True, backend=Evergine Metal + Skia Ganesh Metal.
 ```
+
+These diagnostics measure frame count and compare the Evergine-owned native
+texture handle each frame. They do not intercept transfer APIs or detect
+lower-level copies performed inside a driver or engine.
 
 ## Data flow
 
@@ -22,13 +25,14 @@ flowchart LR
     E -->|public MTLDevice| Q[Dedicated Skia MTLCommandQueue]
     T -->|same native handle| S[Skia GRBackendTexture + SKSurface]
     S -->|Ganesh renders dashboard| T
-    T -->|TextureView, no copy| R[Evergine render pass]
+    T -->|TextureView, same native texture| R[Evergine render pass]
     R -->|samples on rotating cube| D[CAMetalLayer drawable]
 ```
 
 The final Evergine render pass rasterizes the textured cube into the window
-drawable as normal. The zero-copy claim is specifically the Skia-to-Evergine
-dashboard texture path: Evergine samples the same allocation Skia rendered.
+drawable as normal. In the Skia-to-Evergine dashboard path, application code
+passes the same native texture handle to both libraries rather than copying
+pixels between separate application-managed textures.
 
 ## Prerequisites
 
@@ -108,14 +112,17 @@ contract over throughput:
 4. `CommandQueue.WaitIdle()` completes Evergine rendering before presentation
    and before the next Skia write.
 
-This synchronization is **CPU-blocking but memory-zero-copy**. A production
-adapter should replace these waits with shared Metal events or fences when the
-engine exposes the required queue/submission hooks.
+This synchronization is CPU-blocking, but it does not introduce an
+application-level texture transfer. A production adapter should replace these
+waits with shared Metal events or fences when the engine exposes the required
+queue/submission hooks.
 
 `InteropFrameContract` makes the legal ordering testable, and
-`ZeroCopyDiagnostics` checks that the native dashboard texture handle remains
-stable while recording all explicit CPU transfer paths. The sample contains no
-calls that increment either transfer counter.
+`InteropDiagnostics` checks that the Evergine-owned native dashboard texture
+handle remains stable across frames. To audit driver- or engine-level resource
+transfers, inspect a run with a Metal GPU capture and Apple's Metal profiling
+tools; the application diagnostics do not make claims about operations below
+the public API calls shown here.
 
 ## Package versions
 
@@ -141,6 +148,8 @@ Versions are centralized in
 - The custom host is intentionally a minimal sample adapter, not a complete
   Evergine scene/lifecycle integration.
 - Graphite is not used; this sample targets Skia Ganesh Metal.
+- Native-handle stability confirms object identity, not the absence of hidden
+  driver- or engine-level copies; use Metal GPU capture to audit those.
 
 ### Direct3D 12 status
 
@@ -156,7 +165,7 @@ also inspected; reflection and CPU-copy fallbacks were rejected.
 ## Replacing the Evergine adapter
 
 AVEVA or another engine integrator can keep `SkiaMetalTextureBridge`,
-`InteropFrameContract`, and `ZeroCopyDiagnostics` while replacing
+`InteropFrameContract`, and `InteropDiagnostics` while replacing
 `MetalInteropRenderer` with an adapter that:
 
 1. Creates a private render-target/shader-resource Metal texture with no CPU

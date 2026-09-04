@@ -1,7 +1,7 @@
 # SkiaSharp graphics interop samples
 
-Truthful GPU-interoperability samples for using SkiaSharp with native graphics
-engines without CPU readback or texture re-upload.
+GPU-interoperability samples for sharing native graphics resources between
+SkiaSharp and rendering engines without application-level pixel transfers.
 
 ## Samples
 
