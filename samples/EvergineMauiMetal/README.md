@@ -73,6 +73,12 @@ The sample instead asks once per timer tick and skips the frame when
 Each drawable texture is wrapped temporarily in a public Evergine
 `MTLFrameBuffer`.
 
+Evergine.Metal 2026.5.26.1667 shifts a `TextureView` in resource-set slot 0
+to native Metal texture binding 20. The fragment shader therefore declares
+the dashboard as `[[texture(20)]]`; `[[texture(0)]]` is unbound and samples
+transparent black. This package-specific shader binding is explicit and
+version-pinned rather than guessed at runtime.
+
 No Evergine source is copied, and the sample does not use reflection or access
 internal fields.
 

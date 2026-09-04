@@ -265,7 +265,7 @@ internal sealed class MetalInteropRenderer : IDisposable
                 ClearFlags.All,
                 0,
                 0,
-                new Evergine.Common.Graphics.Color(0.027f, 0.043f, 0.086f, 1)));
+                new Evergine.Common.Graphics.Color(0.055f, 0.12f, 0.26f, 1)));
         commandBuffer.BeginRenderPass(ref renderPass);
         commandBuffer.SetViewports(viewports);
         commandBuffer.SetScissorRectangles(scissors);

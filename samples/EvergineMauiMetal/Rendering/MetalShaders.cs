@@ -43,12 +43,23 @@ internal static class MetalShaders
             float2 textureCoordinate [[user(locn0)]];
         };
 
-        fragment float4 PS(
+        struct FragmentOutput
+        {
+            float4 color [[color(0)]];
+        };
+
+        fragment FragmentOutput PS(
             FragmentInput input [[stage_in]],
-            texture2d<float> dashboard [[texture(0)]],
+            // Evergine Metal maps TextureView slot 0 to native texture binding 20.
+            texture2d<float> dashboard [[texture(20)]],
             sampler dashboardSampler [[sampler(0)]])
         {
-            return dashboard.sample(dashboardSampler, input.textureCoordinate);
+            FragmentOutput output;
+            float4 dashboardColor = dashboard.sample(dashboardSampler, input.textureCoordinate);
+            float2 edgeDistance = min(input.textureCoordinate, 1.0 - input.textureCoordinate);
+            float edge = 1.0 - smoothstep(0.0, 0.035, min(edgeDistance.x, edgeDistance.y));
+            output.color = mix(dashboardColor, float4(0.18, 0.95, 0.80, 1.0), edge);
+            return output;
         }
         """;
 }
