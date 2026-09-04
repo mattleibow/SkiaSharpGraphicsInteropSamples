@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/samples/">
+    <Project Path="samples/EvergineMauiMetal/EvergineMauiMetal.csproj" />
+  </Folder>
+  <Folder Name="/samples/EvergineMauiMetal/" />
+  <Folder Name="/samples/EvergineMauiMetal/Interop/">
+    <Project Path="samples/EvergineMauiMetal/Interop/EvergineMauiMetal.Interop.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/EvergineMauiMetal.Interop.Tests/EvergineMauiMetal.Interop.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,34 @@
+name: Mac Catalyst
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.400
+
+      - name: Install Mac Catalyst workload
+        run: dotnet workload install maui-maccatalyst
+
+      - name: Restore
+        run: dotnet restore SkiaSharpGraphicsInteropSamples.slnx
+
+      - name: Test bridge contract
+        run: dotnet test tests/EvergineMauiMetal.Interop.Tests/EvergineMauiMetal.Interop.Tests.csproj --no-restore
+
+      - name: Build Mac Catalyst sample
+        run: dotnet build samples/EvergineMauiMetal/EvergineMauiMetal.csproj --no-restore
