@@ -2,7 +2,7 @@
 
 This .NET MAUI Mac Catalyst sample renders a changing 2D dashboard with
 SkiaSharp Ganesh Metal directly into an Evergine-owned Metal texture. Evergine
-samples that exact texture on a rotating 3D quad. There is no CPU readback,
+samples that exact texture on a rotating, depth-tested 3D cube. There is no CPU readback,
 pixel copy, staging texture, or texture upload after creation.
 
 The running UI and console diagnostics report:
@@ -23,10 +23,10 @@ flowchart LR
     T -->|same native handle| S[Skia GRBackendTexture + SKSurface]
     S -->|Ganesh renders dashboard| T
     T -->|TextureView, no copy| R[Evergine render pass]
-    R -->|samples on rotating quad| D[CAMetalLayer drawable]
+    R -->|samples on rotating cube| D[CAMetalLayer drawable]
 ```
 
-The final Evergine render pass rasterizes the textured quad into the window
+The final Evergine render pass rasterizes the textured cube into the window
 drawable as normal. The zero-copy claim is specifically the Skia-to-Evergine
 dashboard texture path: Evergine samples the same allocation Skia rendered.
 

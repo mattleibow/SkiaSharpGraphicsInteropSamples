@@ -12,4 +12,4 @@ engines without CPU readback or texture re-upload.
 
 The Metal sample is the reference implementation. It renders a live SkiaSharp
 dashboard directly into an Evergine-owned `MTLTexture`, then samples that same
-texture on rotating Evergine geometry.
+texture on a rotating Evergine cube.

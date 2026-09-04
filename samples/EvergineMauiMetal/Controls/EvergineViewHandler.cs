@@ -72,6 +72,6 @@ public sealed class EvergineViewHandler : ViewHandler<EvergineView, MetalHostVie
         }
 
         renderer ??= new MetalInteropRenderer(PlatformView);
-        renderer.Resize(width, height, UIScreen.MainScreen.Scale);
+        renderer.Resize();
     }
 }

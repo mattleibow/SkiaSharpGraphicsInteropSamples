@@ -117,7 +117,7 @@ internal sealed class SkiaMetalTextureBridge : IDisposable
             bodyFont,
             body);
         canvas.DrawText(
-            "The rotating Evergine quad samples this exact texture.",
+            "The rotating Evergine cube samples this exact texture.",
             64,
             890,
             SKTextAlign.Left,

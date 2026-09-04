@@ -1,6 +1,8 @@
 using CoreAnimation;
 using CoreGraphics;
+using Foundation;
 using Metal;
+using ObjCRuntime;
 using UIKit;
 
 namespace EvergineMauiMetal.Controls;
@@ -9,23 +11,21 @@ public sealed class MetalHostView : UIView
 {
     public MetalHostView()
     {
-        MetalLayer = new CAMetalLayer
-        {
-            FramebufferOnly = true,
-            Opaque = true,
-            PixelFormat = MTLPixelFormat.BGRA8Unorm,
-        };
-        Layer.AddSublayer(MetalLayer);
+        MetalLayer.FramebufferOnly = true;
+        MetalLayer.Opaque = true;
+        MetalLayer.PixelFormat = MTLPixelFormat.BGRA8Unorm;
     }
+
+    [Export("layerClass")]
+    public static Class LayerClass() => new(typeof(CAMetalLayer));
 
     public Action? LayoutChanged { get; set; }
 
-    public CAMetalLayer MetalLayer { get; }
+    public CAMetalLayer MetalLayer => (CAMetalLayer)Layer;
 
     public override void LayoutSubviews()
     {
         base.LayoutSubviews();
-        MetalLayer.Frame = Bounds;
         var scale = Window?.Screen.Scale ?? UIScreen.MainScreen.Scale;
         MetalLayer.ContentsScale = scale;
         MetalLayer.DrawableSize = new CGSize(
@@ -38,8 +38,7 @@ public sealed class MetalHostView : UIView
     {
         if (disposing)
         {
-            MetalLayer.RemoveFromSuperLayer();
-            MetalLayer.Dispose();
+            LayoutChanged = null;
         }
 
         base.Dispose(disposing);

@@ -7,6 +7,7 @@ using EvergineMauiMetal.Controls;
 using EvergineMauiMetal.Interop;
 using Evergine.Mathematics;
 using Evergine.Metal;
+using Metal;
 using EwgBuffer = Evergine.Common.Graphics.Buffer;
 using EwgTexture = Evergine.Metal.MTLTexture;
 
@@ -16,18 +17,60 @@ internal sealed class MetalInteropRenderer : IDisposable
 {
     private const int DashboardSize = 1024;
 
-    private static readonly VertexPositionTexture[] QuadVertices =
+    private static readonly VertexPositionTexture[] CubeVertices =
     [
-        new(new Vector3(-1.6f, -1.0f, 0), new Vector2(0, 1)),
-        new(new Vector3(-1.6f,  1.0f, 0), new Vector2(0, 0)),
-        new(new Vector3( 1.6f,  1.0f, 0), new Vector2(1, 0)),
-        new(new Vector3(-1.6f, -1.0f, 0), new Vector2(0, 1)),
-        new(new Vector3( 1.6f,  1.0f, 0), new Vector2(1, 0)),
-        new(new Vector3( 1.6f, -1.0f, 0), new Vector2(1, 1)),
+        // Front
+        new(new Vector3(-1, -1,  1), new Vector2(0, 1)),
+        new(new Vector3(-1,  1,  1), new Vector2(0, 0)),
+        new(new Vector3( 1,  1,  1), new Vector2(1, 0)),
+        new(new Vector3(-1, -1,  1), new Vector2(0, 1)),
+        new(new Vector3( 1,  1,  1), new Vector2(1, 0)),
+        new(new Vector3( 1, -1,  1), new Vector2(1, 1)),
+
+        // Back
+        new(new Vector3( 1, -1, -1), new Vector2(0, 1)),
+        new(new Vector3( 1,  1, -1), new Vector2(0, 0)),
+        new(new Vector3(-1,  1, -1), new Vector2(1, 0)),
+        new(new Vector3( 1, -1, -1), new Vector2(0, 1)),
+        new(new Vector3(-1,  1, -1), new Vector2(1, 0)),
+        new(new Vector3(-1, -1, -1), new Vector2(1, 1)),
+
+        // Left
+        new(new Vector3(-1, -1, -1), new Vector2(0, 1)),
+        new(new Vector3(-1,  1, -1), new Vector2(0, 0)),
+        new(new Vector3(-1,  1,  1), new Vector2(1, 0)),
+        new(new Vector3(-1, -1, -1), new Vector2(0, 1)),
+        new(new Vector3(-1,  1,  1), new Vector2(1, 0)),
+        new(new Vector3(-1, -1,  1), new Vector2(1, 1)),
+
+        // Right
+        new(new Vector3(1, -1,  1), new Vector2(0, 1)),
+        new(new Vector3(1,  1,  1), new Vector2(0, 0)),
+        new(new Vector3(1,  1, -1), new Vector2(1, 0)),
+        new(new Vector3(1, -1,  1), new Vector2(0, 1)),
+        new(new Vector3(1,  1, -1), new Vector2(1, 0)),
+        new(new Vector3(1, -1, -1), new Vector2(1, 1)),
+
+        // Top
+        new(new Vector3(-1, 1,  1), new Vector2(0, 1)),
+        new(new Vector3(-1, 1, -1), new Vector2(0, 0)),
+        new(new Vector3( 1, 1, -1), new Vector2(1, 0)),
+        new(new Vector3(-1, 1,  1), new Vector2(0, 1)),
+        new(new Vector3( 1, 1, -1), new Vector2(1, 0)),
+        new(new Vector3( 1, 1,  1), new Vector2(1, 1)),
+
+        // Bottom
+        new(new Vector3(-1, -1, -1), new Vector2(0, 1)),
+        new(new Vector3(-1, -1,  1), new Vector2(0, 0)),
+        new(new Vector3( 1, -1,  1), new Vector2(1, 0)),
+        new(new Vector3(-1, -1, -1), new Vector2(0, 1)),
+        new(new Vector3( 1, -1,  1), new Vector2(1, 0)),
+        new(new Vector3( 1, -1, -1), new Vector2(1, 1)),
     ];
 
     private readonly MTLGraphicsContext graphicsContext;
     private readonly CAMetalLayer presentationLayer;
+    private readonly IMTLCommandQueue presentationQueue;
     private readonly CommandQueue renderQueue;
     private readonly GraphicsPipelineState pipelineState;
     private readonly ResourceLayout resourceLayout;
@@ -42,6 +85,7 @@ internal sealed class MetalInteropRenderer : IDisposable
     private readonly InteropFrameContract frameContract = new();
     private readonly ZeroCopyDiagnostics diagnostics;
     private readonly Stopwatch elapsed = Stopwatch.StartNew();
+    private EwgTexture? depthTexture;
     private Viewport[] viewports = [];
     private Rectangle[] scissors = [];
     private bool disposed;
@@ -52,6 +96,8 @@ internal sealed class MetalInteropRenderer : IDisposable
         graphicsContext.CreateDevice();
         presentationLayer = hostView.MetalLayer;
         presentationLayer.Device = graphicsContext.device;
+        presentationQueue = graphicsContext.device.CreateCommandQueue()
+            ?? throw new InvalidOperationException("Metal did not create the presentation queue.");
 
         var textureDescription = new TextureDescription
         {
@@ -81,10 +127,10 @@ internal sealed class MetalInteropRenderer : IDisposable
         fragmentShader = CreateShader(MetalShaders.Fragment, "PS", ShaderStages.Pixel);
 
         var vertexBufferDescription = new BufferDescription(
-            (uint)(Unsafe.SizeOf<VertexPositionTexture>() * QuadVertices.Length),
+            (uint)(Unsafe.SizeOf<VertexPositionTexture>() * CubeVertices.Length),
             BufferFlags.VertexBuffer,
             ResourceUsage.Default);
-        vertexBuffer = graphicsContext.Factory.CreateBuffer(QuadVertices, ref vertexBufferDescription);
+        vertexBuffer = graphicsContext.Factory.CreateBuffer(CubeVertices, ref vertexBufferDescription);
 
         var constantBufferDescription = new BufferDescription(
             64,
@@ -120,12 +166,12 @@ internal sealed class MetalInteropRenderer : IDisposable
             },
             RenderStates = new RenderStateDescription
             {
-                RasterizerState = RasterizerStates.CullBack,
+                RasterizerState = RasterizerStates.None,
                 BlendState = BlendStates.Opaque,
-                DepthStencilState = DepthStencilStates.None,
+                DepthStencilState = DepthStencilStates.ReadWrite,
             },
             Outputs = new OutputDescription(
-                null,
+                new OutputAttachmentDescription(PixelFormat.D32_Float),
                 [new OutputAttachmentDescription(PixelFormat.B8G8R8A8_UNorm)],
                 TextureSampleCount.None,
                 1),
@@ -138,14 +184,13 @@ internal sealed class MetalInteropRenderer : IDisposable
             $"nativeTexture=0x{diagnostics.NativeTextureHandle:X}, CPU readbacks=0, CPU uploads after creation=0.");
     }
 
-    public void Resize(double width, double height, double displayScale)
+    public void Resize()
     {
         ObjectDisposedException.ThrowIf(disposed, this);
 
-        var pixelWidth = Math.Max(1u, (uint)Math.Ceiling(width * displayScale));
-        var pixelHeight = Math.Max(1u, (uint)Math.Ceiling(height * displayScale));
-        viewports = [new Viewport(0, 0, pixelWidth, pixelHeight)];
-        scissors = [new Rectangle(0, 0, (int)pixelWidth, (int)pixelHeight)];
+        EnsureRenderSize(
+            Math.Max(1u, (uint)presentationLayer.DrawableSize.Width),
+            Math.Max(1u, (uint)presentationLayer.DrawableSize.Height));
     }
 
     public void DrawFrame()
@@ -162,11 +207,15 @@ internal sealed class MetalInteropRenderer : IDisposable
             return;
         }
 
+        var drawableWidth = (uint)drawable.Texture.Width;
+        var drawableHeight = (uint)drawable.Texture.Height;
+        EnsureRenderSize(drawableWidth, drawableHeight);
+
         var targetDescription = new TextureDescription
         {
             Type = TextureType.Texture2D,
-            Width = (uint)drawable.Texture.Width,
-            Height = (uint)drawable.Texture.Height,
+            Width = drawableWidth,
+            Height = drawableHeight,
             Depth = 1,
             ArraySize = 1,
             MipLevels = 1,
@@ -182,7 +231,7 @@ internal sealed class MetalInteropRenderer : IDisposable
             drawable.Texture);
         using var frameBuffer = new MTLFrameBuffer(
             graphicsContext,
-            null,
+            new FrameBufferAttachment(depthTexture),
             [new FrameBufferAttachment(targetTexture)],
             disposeAttachments: false);
 
@@ -200,7 +249,10 @@ internal sealed class MetalInteropRenderer : IDisposable
             0.1f,
             100f,
             reverseDepthBuffer: true);
-        var rotation = Matrix4x4.CreateRotationY((float)elapsed.Elapsed.TotalSeconds * 0.55f);
+        var seconds = (float)elapsed.Elapsed.TotalSeconds;
+        var rotation =
+            Matrix4x4.CreateRotationX(seconds * 0.42f) *
+            Matrix4x4.CreateRotationY(seconds * 0.67f);
         var worldViewProjection = rotation * view * projection;
 
         var commandBuffer = renderQueue.CommandBuffer();
@@ -211,7 +263,7 @@ internal sealed class MetalInteropRenderer : IDisposable
             frameBuffer,
             new ClearValue(
                 ClearFlags.All,
-                1,
+                0,
                 0,
                 new Evergine.Common.Graphics.Color(0.027f, 0.043f, 0.086f, 1)));
         commandBuffer.BeginRenderPass(ref renderPass);
@@ -220,14 +272,18 @@ internal sealed class MetalInteropRenderer : IDisposable
         commandBuffer.SetGraphicsPipelineState(pipelineState);
         commandBuffer.SetResourceSet(resourceSet);
         commandBuffer.SetVertexBuffers([vertexBuffer]);
-        commandBuffer.Draw((uint)QuadVertices.Length);
+        commandBuffer.Draw((uint)CubeVertices.Length);
         commandBuffer.EndRenderPass();
         commandBuffer.End();
         commandBuffer.Commit();
 
         renderQueue.Submit();
         renderQueue.WaitIdle();
-        drawable.Present();
+        using var presentationCommandBuffer = presentationQueue.CommandBuffer()
+            ?? throw new InvalidOperationException("Metal did not create a presentation command buffer.");
+        presentationCommandBuffer.PresentDrawable(drawable);
+        presentationCommandBuffer.Commit();
+        presentationCommandBuffer.WaitUntilCompleted();
         frameContract.CompleteEvergineSynchronously();
 
         diagnostics.CompleteFrame(dashboardTexture.NativePointer);
@@ -262,8 +318,10 @@ internal sealed class MetalInteropRenderer : IDisposable
         fragmentShader.Dispose();
         vertexShader.Dispose();
         pipelineState.Dispose();
+        depthTexture?.Dispose();
         dashboardTexture.Dispose();
         renderQueue.Dispose();
+        presentationQueue.Dispose();
         graphicsContext.Dispose();
         disposed = true;
     }
@@ -273,6 +331,35 @@ internal sealed class MetalInteropRenderer : IDisposable
         var compilation = graphicsContext.ShaderCompile(source, entryPoint, stage, CompilerParameters.Default);
         var description = new ShaderDescription(stage, entryPoint, compilation.ByteCode);
         return graphicsContext.Factory.CreateShader(ref description);
+    }
+
+    private void EnsureRenderSize(uint pixelWidth, uint pixelHeight)
+    {
+        if (depthTexture?.Description.Width == pixelWidth &&
+            depthTexture.Description.Height == pixelHeight)
+        {
+            return;
+        }
+
+        renderQueue.WaitIdle();
+        depthTexture?.Dispose();
+        var depthDescription = new TextureDescription
+        {
+            Type = TextureType.Texture2D,
+            Width = pixelWidth,
+            Height = pixelHeight,
+            Depth = 1,
+            ArraySize = 1,
+            MipLevels = 1,
+            Format = PixelFormat.D32_Float,
+            Flags = TextureFlags.DepthStencil,
+            CpuAccess = ResourceCpuAccess.None,
+            Usage = ResourceUsage.Default,
+            SampleCount = TextureSampleCount.None,
+        };
+        depthTexture = (EwgTexture)graphicsContext.Factory.CreateTexture(ref depthDescription);
+        viewports = [new Viewport(0, 0, pixelWidth, pixelHeight)];
+        scissors = [new Rectangle(0, 0, (int)pixelWidth, (int)pixelHeight)];
     }
 
     private static void WriteDiagnostic(string message)
