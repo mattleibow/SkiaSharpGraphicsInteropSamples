@@ -1,4 +1,5 @@
 using EvergineMauiMetal.Interop;
+using Evergine.Metal;
 using Metal;
 using SkiaSharp;
 
@@ -14,18 +15,15 @@ internal sealed class SkiaMetalTextureBridge : IDisposable
     private bool disposed;
 
     public SkiaMetalTextureBridge(
-        IMTLDevice device,
-        nint deviceHandle,
-        nint textureHandle,
-        int width,
-        int height)
+        MTLGraphicsContext evergineGraphicsContext,
+        MTLTexture engineTexture)
     {
-        commandQueue = device.CreateCommandQueue()
+        commandQueue = evergineGraphicsContext.device.CreateCommandQueue()
             ?? throw new InvalidOperationException("Metal did not create a command queue for Skia.");
 
         backendContext = new GRMtlBackendContext
         {
-            DeviceHandle = deviceHandle,
+            DeviceHandle = evergineGraphicsContext.NativeDevicePointer,
             QueueHandle = (nint)commandQueue.Handle,
         };
 
@@ -33,10 +31,10 @@ internal sealed class SkiaMetalTextureBridge : IDisposable
             ?? throw new InvalidOperationException("Skia could not create a Ganesh Metal context.");
 
         backendTexture = new GRBackendTexture(
-            width,
-            height,
+            (int)engineTexture.Description.Width,
+            (int)engineTexture.Description.Height,
             mipmapped: false,
-            new GRMtlTextureInfo(textureHandle));
+            new GRMtlTextureInfo(engineTexture.NativePointer));
 
         surface = SKSurface.Create(
             graphicsContext,
@@ -123,8 +121,7 @@ internal sealed class SkiaMetalTextureBridge : IDisposable
             bodyFont,
             body);
 
-        // The synchronous submit is the public cross-queue ordering point:
-        // Skia finishes writing before Evergine starts sampling.
+        // Ganesh blocks until its dedicated queue finishes before Evergine samples.
         surface.Flush(submit: true, synchronous: true);
     }
 

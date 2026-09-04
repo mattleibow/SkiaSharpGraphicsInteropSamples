@@ -18,6 +18,17 @@ public class InteropFrameContractTests
     }
 
     [Fact]
+    public void EngineCannotPresentBeforeSkiaCompletes()
+    {
+        var contract = new InteropFrameContract();
+        contract.BeginSkia();
+
+        var exception = Assert.Throws<InvalidOperationException>(contract.BeginEvergine);
+
+        Assert.Contains(nameof(InteropFrameStage.ReadyForEvergine), exception.Message);
+    }
+
+    [Fact]
     public void OutOfOrderUseIsRejected()
     {
         var contract = new InteropFrameContract();

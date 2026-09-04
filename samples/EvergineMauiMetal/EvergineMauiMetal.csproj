@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net10.0-maccatalyst</TargetFramework>
+    <TargetFramework>net10.0-ios</TargetFramework>
     <OutputType>Exe</OutputType>
     <RootNamespace>EvergineMauiMetal</RootNamespace>
     <UseMaui>true</UseMaui>
@@ -13,7 +13,8 @@
     <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
     <ApplicationVersion>1</ApplicationVersion>
     <SupportedOSPlatformVersion>26.0</SupportedOSPlatformVersion>
-    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">maccatalyst-arm64</RuntimeIdentifier>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">iossimulator-arm64</RuntimeIdentifier>
+    <MtouchInterpreter>-all</MtouchInterpreter>
   </PropertyGroup>
 
   <ItemGroup>
@@ -23,12 +24,15 @@
 
   <ItemGroup>
     <PackageReference Include="Evergine.Common" />
+    <PackageReference Include="Evergine.Components" />
+    <PackageReference Include="Evergine.Framework" />
+    <PackageReference Include="Evergine.iOS" />
     <PackageReference Include="Evergine.Mathematics" />
     <PackageReference Include="Evergine.Metal" />
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" />
     <PackageReference Include="Microsoft.Maui.Controls" />
     <PackageReference Include="SkiaSharp" />
-    <PackageReference Include="SkiaSharp.NativeAssets.MacCatalyst" />
+    <PackageReference Include="SkiaSharp.NativeAssets.iOS" />
   </ItemGroup>
 
   <ItemGroup>

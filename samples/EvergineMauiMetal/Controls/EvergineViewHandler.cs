@@ -1,77 +1,128 @@
-using EvergineMauiMetal.Rendering;
-using Foundation;
+using System.Diagnostics;
+using Evergine.Common.Graphics;
+using Evergine.Framework.Graphics;
+using Evergine.Framework.Services;
+using Evergine.iOS;
 using Microsoft.Maui.Handlers;
 using UIKit;
 
 namespace EvergineMauiMetal.Controls;
 
-public sealed class EvergineViewHandler : ViewHandler<EvergineView, MetalHostView>
+public sealed class EvergineViewHandler : ViewHandler<EvergineView, UIView>
 {
-    private MetalInteropRenderer? renderer;
-    private NSTimer? frameTimer;
+    private static readonly IPropertyMapper<EvergineView, EvergineViewHandler> PropertyMapper =
+        new PropertyMapper<EvergineView, EvergineViewHandler>(ViewMapper);
+
+    private global::Evergine.Framework.Application? evergineApplication;
+    private EvergineAppViewController? evergineViewController;
+    private bool isViewLoaded;
+    private bool isEvergineInitialized;
 
     public EvergineViewHandler()
-        : base(ViewMapper)
+        : base(PropertyMapper)
     {
     }
 
-    protected override MetalHostView CreatePlatformView() =>
-        new()
-        {
-            BackgroundColor = UIColor.FromRGB(7, 11, 22),
-            Opaque = true,
-        };
+    protected override UIView CreatePlatformView()
+    {
+        evergineViewController = new EvergineAppViewController();
+        ViewController = evergineViewController;
+        return evergineViewController.View!;
+    }
 
-    protected override void ConnectHandler(MetalHostView platformView)
+    protected override void ConnectHandler(UIView platformView)
     {
         base.ConnectHandler(platformView);
-        platformView.LayoutChanged = OnLayoutChanged;
-        frameTimer = NSTimer.CreateRepeatingScheduledTimer(
-            TimeSpan.FromSeconds(1d / 60d),
-            _ => OnFrameTimer());
+        isViewLoaded = false;
+        evergineViewController!.ViewDidLayout += OnViewDidLayout;
     }
 
-    protected override void DisconnectHandler(MetalHostView platformView)
+    protected override void DisconnectHandler(UIView platformView)
     {
-        platformView.LayoutChanged = null;
-        frameTimer?.Invalidate();
-        frameTimer?.Dispose();
-        frameTimer = null;
-        renderer?.Dispose();
-        renderer = null;
+        var viewController = evergineViewController;
+        if (viewController is not null)
+        {
+            viewController.ViewDidLayout -= OnViewDidLayout;
+            viewController.StopRendering();
+        }
+
+        evergineApplication?.Dispose();
+        evergineApplication = null;
+        isEvergineInitialized = false;
+        isViewLoaded = false;
+
         base.DisconnectHandler(platformView);
+
+        viewController?.Dispose();
+        evergineViewController = null;
     }
 
-    private void OnLayoutChanged()
+    private void OnViewDidLayout(object? sender, EventArgs e)
     {
-        ResizeRenderer();
+        isViewLoaded = true;
+        StartApplication(VirtualView);
     }
 
-    private void OnFrameTimer()
+    private void StartApplication(EvergineView view)
     {
-        if (PlatformView.Window is null)
+        if (!isViewLoaded || isEvergineInitialized)
         {
             return;
         }
 
-        if (renderer is null)
-        {
-            ResizeRenderer();
-        }
+        var applicationFactory = view.ApplicationFactory
+            ?? throw new InvalidOperationException(
+                $"{nameof(EvergineView)} requires an {nameof(EvergineView.ApplicationFactory)}.");
+        var application = applicationFactory();
+        evergineApplication = application;
 
-        renderer?.DrawFrame();
+        var windowsSystem = new IOSWindowsSystem(evergineViewController!);
+        application.Container.RegisterInstance(windowsSystem as WindowsSystem);
+        var surface = windowsSystem.CreateSurface(0, 0);
+
+        ConfigureGraphics(application, surface);
+
+        var frameClock = Stopwatch.StartNew();
+        isEvergineInitialized = true;
+        windowsSystem.Run(
+            application.Initialize,
+            () =>
+            {
+                var gameTime = frameClock.Elapsed;
+                frameClock.Restart();
+                application.UpdateFrame(gameTime);
+                application.DrawFrame(gameTime);
+            });
+        evergineViewController!.LoadAction?.Invoke();
     }
 
-    private void ResizeRenderer()
+    private static void ConfigureGraphics(
+        global::Evergine.Framework.Application application,
+        Surface surface)
     {
-        var width = PlatformView.Bounds.Width;
-        var height = PlatformView.Bounds.Height;
-        if (PlatformView.Window is null || width < 1 || height < 1)
-        {
-            return;
-        }
+        GraphicsContext graphicsContext = new global::Evergine.Metal.MTLGraphicsContext();
+        graphicsContext.CreateDevice();
 
-        renderer ??= new MetalInteropRenderer(PlatformView);
-        renderer.Resize();
+        var swapChainDescription = new SwapChainDescription
+        {
+            SurfaceInfo = surface.SurfaceInfo,
+            Width = surface.Width,
+            Height = surface.Height,
+            ColorTargetFormat = PixelFormat.B8G8R8A8_UNorm,
+            ColorTargetFlags = TextureFlags.RenderTarget | TextureFlags.ShaderResource,
+            DepthStencilTargetFormat = PixelFormat.D32_Float,
+            DepthStencilTargetFlags = TextureFlags.DepthStencil,
+            SampleCount = TextureSampleCount.None,
+            IsWindowed = true,
+            RefreshRate = 60,
+        };
+
+        var swapChain = graphicsContext.CreateSwapChain(swapChainDescription);
+        swapChain.VerticalSync = true;
+        swapChain.FrameBuffer.IntermediateBufferAssociated = false;
+
+        var graphicsPresenter = application.Container.Resolve<GraphicsPresenter>();
+        graphicsPresenter.AddDisplay("DefaultDisplay", new Display(surface, swapChain));
+        application.Container.RegisterInstance(graphicsContext);
     }
 }

@@ -6,45 +6,5 @@
     xmlns:controls="clr-namespace:EvergineMauiMetal.Controls"
     BackgroundColor="#070B16">
 
-    <Grid>
-        <controls:EvergineView x:Name="EvergineViewport" />
-
-        <Border
-            Margin="24"
-            Padding="16,12"
-            HorizontalOptions="Start"
-            VerticalOptions="Start"
-            BackgroundColor="#CC111827"
-            Stroke="#334155"
-            StrokeShape="RoundRectangle 12"
-            InputTransparent="True">
-            <VerticalStackLayout Spacing="3">
-                <Label
-                    FontAttributes="Bold"
-                    FontSize="18"
-                    Text="SkiaSharp + Evergine"
-                    TextColor="White" />
-                <Label
-                    FontSize="12"
-                    Text="Evergine MTLTexture -> Skia Ganesh -> Evergine cube"
-                    TextColor="#94A3B8" />
-            </VerticalStackLayout>
-        </Border>
-
-        <Border
-            Margin="24"
-            Padding="12,8"
-            HorizontalOptions="Center"
-            VerticalOptions="End"
-            BackgroundColor="#CC052E2B"
-            Stroke="#10B981"
-            StrokeShape="RoundRectangle 10"
-            InputTransparent="True">
-            <Label
-                FontAttributes="Bold"
-                FontSize="12"
-                Text="SkiaSharp draws the live UI  |  Evergine samples the same MTLTexture"
-                TextColor="#6EE7B7" />
-        </Border>
-    </Grid>
+    <controls:EvergineView x:Name="EvergineViewport" />
 </ContentPage>
